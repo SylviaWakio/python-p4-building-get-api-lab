@@ -1,49 +1,33 @@
-#!/usr/bin/env python3
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy_serializer import SerializerMixin
 
-from random import randint, choice as rc
+db = SQLAlchemy()
 
-from faker import Faker
 
-from app import app
-from models import db, Bakery, BakedGood
+class Bakery(db.Model, SerializerMixin):
+    __tablename__ = "bakeries"
 
-fake = Faker()
+    serialize_rules = ("-baked_goods.bakeries",)
 
-with app.app_context():
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(), unique=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-    BakedGood.query.delete()
-    Bakery.query.delete()
-    
-    bakeries = []
-    for i in range(20):
-        b = Bakery(
-            name=fake.company()
-        )
-        bakeries.append(b)
-    
-    db.session.add_all(bakeries)
+    baked_goods = db.relationship("BakedGood", backref="bakery")
 
-    baked_goods = []
-    names = []
-    for i in range(200):
 
-        name = fake.first_name()
-        while name in names:
-            name = fake.first_name()
-        names.append(name)
+class BakedGood(db.Model, SerializerMixin):
+    __tablename__ = "baked_goods"
 
-        bg = BakedGood(
-            name=name,
-            price=randint(1,10),
-            bakery=rc(bakeries)
-        )
+    serialize_rules = ("-bakeries.baked_goods",)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, unique=True)
+    price = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, onupdate=db.func.now())
 
-        baked_goods.append(bg)
+    bakery_id = db.Column(db.Integer, db.ForeignKey("bakeries.id"))
 
-    db.session.add_all(baked_goods)
-    db.session.commit()
-    
-    most_expensive_baked_good = rc(baked_goods)
-    most_expensive_baked_good.price = 100
-    db.session.add(most_expensive_baked_good)
-    db.session.commit()
+    def __repr__(self):
+        return f"<Baked_good ({self.name}) >"
